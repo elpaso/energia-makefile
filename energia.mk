@@ -65,6 +65,11 @@
 #
 # Here is a complete list of configuration parameters:
 #
+# ENERGIACONST The Energia/Arduino software version, as an integer, used to define the
+#              ARDUINO/ENERGIA version constant. This defaults to 100 if undefined.
+#
+#
+#
 # ENERGIADIR   The path where the Arduino software is installed on your system.
 #
 #
@@ -119,6 +124,11 @@ ifeq "$(wildcard $(ENERGIADIR)/hardware/msp430/boards.txt)" ""
 $(error ENERGIADIR is not set correctly; energia software not found)
 endif
 
+# default arduino version
+ARDUINOCONST ?= 101
+ENERGIACONST ?= 9
+
+
 # auto mode?
 INOFILE := $(wildcard *.ino *.pde)
 ifdef INOFILE
@@ -152,6 +162,7 @@ SERIALDEVGUESS := 1
 endif
 
 # software
+#CC := msp430-gcc
 CC := msp430-gcc
 CXX := msp430-g++
 LD := msp430-ld
@@ -172,7 +183,6 @@ ENERGIALIBLIBSPATH := $(foreach lib, $(LIBRARIES), \
 ENERGIALIBOBJS := $(foreach dir, $(ENERGIACOREDIR) $(ENERGIALIBLIBSPATH), \
 	$(patsubst %, .lib/%.o, $(wildcard $(addprefix $(dir)/, *.c *.cpp))))
 
-MAINFOBJECT := .lib/$(ENERGIACOREDIR)/main.cpp.o
 
 # no board?
 ifndef ENERGIABOARD
@@ -207,9 +217,9 @@ endif
 
 # flags
 CPPFLAGS := -Os -Wall
-#CPPFLAGS +=
+CPPFLAGS += -ffunction-sections -fdata-sections
 CPPFLAGS += -mmcu=$(BOARD_BUILD_MCU)
-CPPFLAGS += -DF_CPU=$(BOARD_BUILD_FCPU)
+CPPFLAGS += -DF_CPU=$(BOARD_BUILD_FCPU) -DARDUINO=$(ARDUINOCONST)  -DENERGIA=$(ENERGIACONST)
 CPPFLAGS += -I. -Iutil -Iutility -I$(ENERGIACOREDIR)
 CPPFLAGS += -I$(ENERGIADIR)/hardware/msp430/variants/$(BOARD_BUILD_VARIANT)/
 CPPFLAGS += -I$(HOME)/energia_sketchbook/hardware/msp430/variants/$(BOARD_BUILD_VARIANT)/
@@ -220,7 +230,7 @@ CPPFLAGS += $(patsubst %, -I$(ENERGIADIR)/libraries/%/utility, $(LIBRARIES))
 CPPDEPFLAGS = -MMD -MP -MF .dep/$<.dep
 CPPINOFLAGS := -x c++ -include $(ENERGIACOREDIR)/Arduino.h
 MSPDEBUGFLAGS :=  rf2500 'erase' 'load $(TARGET).elf' 'exit'
-LINKFLAGS := -g -mmcu=$(BOARD_BUILD_MCU)
+LINKFLAGS := -mmcu=$(BOARD_BUILD_MCU) -Os -Wl,-gc-sections,-u,main -lm
 
 # figure out which arg to use with stty
 STTYFARG := $(shell stty --help > /dev/null 2>&1 && echo -F || echo -f)
@@ -277,13 +287,13 @@ monitor:
 	screen $(SERIALDEV)
 
 size: $(TARGET).elf
-    echo && $(MSP430SIZE) $(TARGET).elf
+	echo && $(MSP430SIZE) $(TARGET).elf
 
 # building the target
 
 
 $(TARGET).elf: $(ENERGIALIB) $(OBJECTS)
-	$(CC) $(LINKFLAGS) $(OBJECTS) $(ENERGIALIB) $(MAINFOBJECT) -o $@
+	$(CC) $(LINKFLAGS) $(OBJECTS) $(ENERGIALIB) -o $@
 
 %.o: %.c
 	mkdir -p .dep/$(dir $<)
