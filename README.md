@@ -7,3 +7,9 @@ Yesterday I received this new Launchpad board and the very first thing I've done
 
 This Makefile is freely adapted from the good job done by Tim Marston at http://ed.am/dev/make/arduino-mk
 
+Makefile for c code
+-------------------
+
+Makefile.c is a makefile to compile c programs, it doesn't use energia stuff.
+
+
